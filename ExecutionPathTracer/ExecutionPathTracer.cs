@@ -1,5 +1,6 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
+using static TracerToCirq;
 
 using System;
 using System.Collections.Generic;
@@ -20,6 +21,37 @@ namespace Microsoft.Quantum.IQSharp.ExecutionPathTracer
     {
         private IDictionary<int, QubitRegister> qubitRegisters = new Dictionary<int, QubitRegister>();
         private IDictionary<int, List<ClassicalRegister>> classicalRegisters = new Dictionary<int, List<ClassicalRegister>>();
+
+        //Customised code for Trace2cirq
+        public bool realtime = false;//true;
+        public bool validFlag = false;
+        public int cursor = 1;
+        public int expLevel = 0;
+        public Operation exp = null;
+
+        public Dictionary<string,int> supportedGateList = new Dictionary<string, int> {	
+		{"X",0}, 
+		{"Y",0}, 
+		{"Z",0},
+		{"H",0}, 
+		{"S",0}, 
+		{"T",0},
+		{"CZ",0}, 
+		{"CNOT",0}, 
+		{"SWAP",0}, 
+		{"CCNOT",0}, 
+		{"CCX",0}, 
+		{"CCZ",0},
+		{"Interface_Clifford",1}, 
+		{"Interface_CX",2},
+		{"Interface_RFrac",3}, 
+		{"Interface_R",3}, 
+		{"R",3},
+		{"M",4},
+		{"Measure",4},
+		{"Reset",5},
+		{"NoOp", 6}
+		};
 
         /// <summary>
         /// Current stack of processed <see cref="Operation"/>s.
@@ -55,9 +87,43 @@ namespace Microsoft.Quantum.IQSharp.ExecutionPathTracer
                     : null;
 
 
+                
+
+                // Customised code for Trace2cirq
+                if ((realtime == true) && (metadata != null)){
+		            string spacing = new string(' ', this.operations.Count * 2);
+
+		            if (exp != null){
+		            	if (expLevel >= this.operations.Count) {
+		            		Exp(exp);
+		            	}
+		            	exp = null;
+		            	expLevel = 0;
+		            }
+		            
+                	if ((this.operations.Count>cursor) && (validFlag)) {
+                		int x = 1;
+                	} else if (supportedGateList.ContainsKey(metadata.Label)) {
+                        validFlag = true;
+                        Operation op = this.MetadataToOperation(metadata);
+                        Parse(op, true);
+			            cursor = this.operations.Count;	   
+                	} else {
+                		validFlag = false;    
+                	}
+
+                	if (metadata.Label == "Exp"){
+                		exp = this.MetadataToOperation(metadata);
+                		expLevel = this.operations.Count;
+                	}
+                		
+                }
+
                 // We also push on `null` operations to the stack instead of ignoring them so that we pop off the
                 // correct element in `OnOperationEndHandler`.
+                
                 this.operations.Push(this.MetadataToOperation(metadata));
+
             } catch
             {
                 this.operations.Push(this.MetadataToOperation(null));
@@ -146,7 +212,6 @@ namespace Microsoft.Quantum.IQSharp.ExecutionPathTracer
 
             // Add surrounding parentheses around displayArgs if it doesn't already have it (i.e. not a tuple)
             if (displayArgs != null && !displayArgs.StartsWith("(")) displayArgs = $"({displayArgs})";
-
             var op = new Operation()
             {
                 Gate = metadata.Label,
@@ -169,5 +234,10 @@ namespace Microsoft.Quantum.IQSharp.ExecutionPathTracer
 
             return op;
         }
+
+
+
+
+
     }
 }

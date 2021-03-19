@@ -2,13 +2,15 @@
 # TracerToCirc
 TracerToCirc is a class that can be easily added to a qsharp project. As the name suggests, it listens to a quantum simulator and outputs the gates list in a cirq compatible format.
 
-There are two directories. `TracerToCirq` contains cirq conversion code, configuration and helper functions. The other is the `ExecutionPathTracer` folder which contains code from Microsoft's iqsharp repository. <https://github.com/microsoft/iqsharp/tree/main/src/ExecutionPathTracer>
+There are two directories. `TracerToCirq` contains cirq conversion code, configuration and helper functions. The other is the `ExecutionPathTracer` folder which contains code from Microsoft's iqsharp repository, modified for the purpose of realtime gate outputs. <https://github.com/microsoft/iqsharp/tree/main/src/ExecutionPathTracer>
 This directory can be sourced directly from the iqsharp repository however some minor modifications may need to be made.
 
 ## Setup and Usage
 1) Add both directories to your qsharp project directory.
 2) Initialise a tracer
 ```C#
+using static TracerToCirq;
+
 var tracer = new ExecutionPathTracer();
 ```
 3) Attach the tracer to your simulator
@@ -46,6 +48,12 @@ ToCirq(tracer, "qsim_grover",
 `Depth` - Similar to iqsharps functionality, this will group the outputs based on how deep they are in the execution stack. Setting to 0 will output each gate on the same line.
 
 `Jabalize` - Setting to true will output the circuit in a form ready for Jabalizer.
+
+
+## Realtime
+Realtime processing can be demo'd by changing the realtime flag to true in Execution
+
+
 
 ## Unsupported/TODO
  - MResetX/Y/Z doesn't work currently 

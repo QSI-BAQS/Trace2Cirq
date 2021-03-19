@@ -73,6 +73,11 @@ public static class TracerToCirq{
 	private static int cursor;
 	private static List<int> levels;
 	private static TracerToCirqConfig config;
+	private static bool realtime = false;
+
+	public static void SetRealTime(bool real){
+		realtime = real;
+	}
 
 	public static void ToCirq(ExecutionPathTracer tracer, string fileName) { 
 		ToCirq(tracer, fileName, new TracerToCirqConfig());
@@ -233,7 +238,7 @@ if __name__ == '__main__':
 			System.Console.WriteLine(spacing + op.DisplayArgs);			
 		}
 		if (supportedGateList.ContainsKey(op.Gate)) {
-			Parse(op);
+			Parse(op, false);
 
 		} else if (op.Children != null)
         {
@@ -291,13 +296,13 @@ if __name__ == '__main__':
         return (qubits, controls);
 	}
 
-	private static void Parse (Operation op){
+	public static void Parse (Operation op, bool real){
+		realtime = real;
 		var opcode = supportedGateList[op.Gate];
-		if (config.Debug){
+		if ((realtime) || (config.Debug)){
 			System.Console.WriteLine(opcode);
 		}
 		var (qubits, controls) = GetTargets(op, true);
-
 
 		switch (opcode) {
 			case 0: // No processing needed
@@ -372,7 +377,11 @@ if __name__ == '__main__':
 
 	private static void AddRotationOp(string metadata, int qubit, List<int> controls){
 		var split = metadata.Trim('(',')').Split(", ");
+
 		string symbol = ("r" + split[0].Last()).ToLower();
+		if (("" + split[0].Last()).ToLower() == "i"){
+			symbol = "#"+ symbol;
+		}
 		string angle;
 		if (split.Length == 2){
 			angle = split[1];
@@ -393,35 +402,40 @@ if __name__ == '__main__':
 			cursor++;
 		}
 		if (controls.Count != 0){
-			lines.Add(line + ".controlled_by(qubits[" + string.Join("], qubits[", controls) + "])");
+			if (realtime){
+				System.Console.WriteLine(line + ".controlled_by(qubits[" + string.Join("], qubits[", controls) + "])");
+				return;
+			} else {
+				lines.Add(line + ".controlled_by(qubits[" + string.Join("], qubits[", controls) + "])");
+			}
 		} else {
-			lines.Add(line);
+			if (realtime){
+				System.Console.WriteLine(line);
+				return;
+			} else {
+				lines.Add(line);
+			}
 		}
 		levels.Add(cursor);
-		if (!gatesUsed.Contains(symbol)) {
-			gatesUsed.Add(symbol);
-		}
 		if (line.StartsWith('#')){
 			cursor++;
+		} else if (!gatesUsed.Contains(symbol)){
+			gatesUsed.Add(symbol);
 		}
 	}
 
 
-	private static void Exp(Operation op){
+	public static void Exp(Operation op){
 		var (qubits, _) = GetTargets(op, false);
-		System.Console.WriteLine(string.Join(", ", qubits));
 		string[] split = op.DisplayArgs.Trim('(', ')', '[').Split("], ");
 		string[] basis = split[0].Split(", ");
 		string angle = split[1];
-		System.Console.WriteLine(angle);
 		
 
 		List<int> nonIdentityIndicies  = new List<int>();
 		List<string> nonIdentityPaulis  = new List<string>();
 		int i = 0;
 		foreach (int qubit in qubits) {
-			System.Console.WriteLine(qubit);
-			System.Console.WriteLine(basis[i]);
 			if (basis[i] != "PauliI") {
 				nonIdentityIndicies.Add(qubit);
 				nonIdentityPaulis.Add(basis[i]);
